@@ -1,0 +1,222 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Building Serverless Applications with AWS SAM
+
+Parameters:
+  AppName:
+    Description: Name of application.
+    Type: String
+  ApiStageName:
+    Description: Name of API stage.
+    Type: String
+  # Parameters required for realtime updates using IoT Core:
+  IotEndpoint:
+    Description: IoT device data endpoint.
+    Type: String
+  IotTopicName:
+    Description: IoT topic name.
+    Type: String
+
+Globals:
+  Function:
+    CodeUri: src/
+    Runtime: nodejs14.x
+    Architectures:
+      - x86_64
+    Timeout: 3
+
+Resources:
+  # DynamoDB table to store data with stream enabled:
+  VotesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AppName}-table'
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+
+  # API Gateway REST API with CORS configured:
+  RestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub '${AppName}-api'
+      StageName: !Ref ApiStageName
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+        AllowOrigin: "'*'"
+        MaxAge: "'0'"
+
+  # Lambda Function that scans the DynamoDB table:
+  ScanDynamoDBFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AppName}-scan-dynamodb-function'
+      Handler: scan-dynamodb.handler
+      # DynamoDB read access is required.
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref VotesTable
+      Environment:
+        Variables:
+          DDB_TABLE_NAME: !Ref VotesTable
+      # Function invocation: API GET method on /votes resource.
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /votes
+            Method: GET
+
+  # Standard SQS Queue:
+  SqsQueue:
+    Type: AWS::SQS::Queue
+
+  # Lambda Function that publishes a message to the SQS queue:
+  SqsPublishFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AppName}-sqs-publish-function'
+      Handler: sqs-publish.handler
+      # SQS SendMessage access is required:
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt SqsQueue.QueueName
+      Environment:
+        Variables:
+          SQS_QUEUE_URL: !Ref SqsQueue
+      # Function invocation: API POST method on /votes resource.
+      Events:
+        PostVotes:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /votes
+            Method: POST
+
+  # Lambda Function that updates the DynamoDB table:
+  UpdateDynamoDBFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AppName}-sqs-update-dynamodb-function'
+      Handler: sqs-update-dynamodb.handler
+      # DynamoDB write access and SQS poller access is required.
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref VotesTable
+        - SQSPollerPolicy:
+            QueueName: !GetAtt SqsQueue.QueueName
+      Environment:
+        Variables:
+          DDB_TABLE_NAME: !Ref VotesTable
+      # Function invocation: Lambda polls SQS Queue.
+      Events:
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SqsQueue.Arn
+            BatchSize: 10
+            Enabled: true
+
+  # Cognito and IAM resources required to allow unauthenticated web users to subscribe to an IoT topic for real-time updates:
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${AppName}-user-pool'
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: Web
+      UserPoolId:
+        Ref: CognitoUserPool
+  CognitoIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: !Sub '${AppName}-identity-pool'
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ProviderName: !GetAtt CognitoUserPool.ProviderName
+          ClientId: !Ref CognitoUserPoolClient
+  CognitoUnauthRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                'cognito-identity.amazonaws.com:aud': !Ref CognitoIdentityPool
+              ForAnyValue:StringLike:
+                'cognito-identity.amazonaws.com:amr': unauthenticated
+      Policies:
+        - PolicyName: !Sub '${AppName}-unauth-policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: iot:Connect
+                Resource: !Sub 'arn:aws:iot:${AWS::Region}:${AWS::AccountId}:client/*'
+              - Effect: Allow
+                Action: iot:Receive
+                Resource: !Sub 'arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/${IotTopicName}'
+              - Effect: Allow
+                Action: iot:Subscribe
+                Resource: !Sub 'arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/${IotTopicName}'
+  IdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref CognitoIdentityPool
+      Roles:
+        unauthenticated: !GetAtt CognitoUnauthRole.Arn
+
+  # Lambda Function integrated with the DyanmoDB stream that publishes data to an IoT topic for real-time updates:
+  StreamFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AppName}-stream-iot-function'
+      Handler: stream-iot.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref VotesTable
+        - Statement:
+            - Effect: Allow
+              Action: iot:Publish
+              Resource: !Sub 'arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/${IotTopicName}'
+      Environment:
+        Variables:
+          IOT_ENDPOINT: !Ref IotEndpoint
+          IOT_TOPIC: !Ref IotTopicName
+      Events:
+        Stream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt VotesTable.StreamArn
+            BatchSize: 100
+            StartingPosition: TRIM_HORIZON
+
+Outputs:
+  ApiEndpoint:
+    Description: 'API Gateway Endpoint'
+    Value: !Sub 'https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${ApiStageName}'
+  # Outputs required for realtime updates using IoT Core:
+  CognitoIdentityPoolId:
+    Description: 'Cognito Identity Pool Id'
+    Value: !Ref CognitoIdentityPool
+  IotEndpoint:
+    Description: 'IoT device data endpoint.'
+    Value: !Ref IotEndpoint
