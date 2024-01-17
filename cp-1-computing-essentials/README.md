@@ -125,3 +125,34 @@ The city's web portal team wants a solution that will make their beach wave size
 - View results
 
 ### Congratulations to the player on completing the lab
+
+## **DIY**
+
+### 1. In the AWS Console interface
+
+- Find S3
+- Select S3
+
+### 2. In the Amazon S3 interface
+
+- Select Buckets
+- Select lab-unique-name-1
+- Select index.html
+- Select Actions
+- Select Rename object
+
+### 3. In the Rename object interface
+
+- Change index.html to waves.html
+- Select Save changes
+
+### 4. In the Amazon S3 interface
+
+- View the result of renaming object
+- Select waves.html
+
+### 5. In the wave.html interface
+
+- Select Properties
+- View Object URL
+- Copy Object URL
