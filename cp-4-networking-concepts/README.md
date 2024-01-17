@@ -1,8 +1,10 @@
 # Networking Concepts
 
+## **Overview**
+
 Review and change VPC network configurations to fix a connect issue.
 
-## **Overview**
+## **Learn**
 
 ### 1. This solution uses a common network architectural configuration that allows only internet traffic to reach publicly exposed AWS resources.
 

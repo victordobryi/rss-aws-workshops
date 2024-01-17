@@ -1,8 +1,10 @@
 # Core Security Concepts
 
+## **Overview**
+
 Use IAM to provide work permissons to engirees by using group settings and the least privilege principle
 
-## **Overview**
+## **Learn**
 
 ### 1. This solution uses AWS Identity and Access Management (IAM) to create a SupportEngineers group with limited permissions
 

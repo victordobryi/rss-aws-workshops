@@ -1,8 +1,10 @@
 # Databases in Practice
 
+## **Overview**
+
 Improve the operational efficiency availability, and performance efficiency of databases by using multiple Availability Zones and a read replica.
 
-## **Overview**
+## **Learn**
 
 ### 1. The solution uses Amazon Relational Database Service (Amazon RDS), which is fully managed and removes the need for manual database infrastructure provisioning and maintenance.
 
@@ -17,6 +19,8 @@ Improve the operational efficiency availability, and performance efficiency of d
 ### 6. For read-heavy database workloads, you can create one or more read-only replicas of a DB instance. This way, you can serve high-volume application read traffic from multiple copies of your data, increasing aggregate read throughput.
 
 ![Alt text](./assets/image.png)
+
+## **Practice**
 
 ### 1. In the AWS Console interface
 

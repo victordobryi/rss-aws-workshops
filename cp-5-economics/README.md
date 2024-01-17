@@ -1,8 +1,10 @@
 # Cloud Economics
 
+## **Overview**
+
 Configure a price estimate for an architecture that uses a variable amount of Amazon EC2 instances based on peak usage time.
 
-## **Overview**
+## **Learn**
 
 ### 1. This solution uses the AWS Pricing Calculator to create estimates for your AWS use cases. You can model your solutions before building them, explore the AWS service price points, and review the calculations behind your estimates.
 

@@ -1,8 +1,10 @@
 # Connecting VPC
 
+## **Overview**
+
 Allow communication between applications hosted in different VPCs by using VPC peering. The Marketing and Developer EC2 instances need to access the Financial Services Server in the Financ department's VPC.
 
-## **Overview**
+## **Learn**
 
 ### 1. This solution uses a separate virtual private cloud (VPC) for each department: Marketing, Finance, Developer. The VPCs are connected by using VPC peering so that the resources in each can communicate with one another.
 
@@ -24,7 +26,7 @@ Allow communication between applications hosted in different VPCs by using VPC p
 
 ![Alt text](./assets/image.png)
 
-## **Overview**
+## **Practice**
 
 ### 1. In the AWS Console interface
 

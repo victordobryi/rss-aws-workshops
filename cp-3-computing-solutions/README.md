@@ -1,8 +1,10 @@
 # Computing Solutions
 
+## **Overview**
+
 Increase the size of an Amazon EC2 Instance to provide better application performance
 
-## **Overview**
+## **Learn**
 
 ### 1. In this solution, you can connect to your Amazon EC2 instance in multiple ways, such as using EC2 Instance Connect from the AWS Management Console.
 

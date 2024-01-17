@@ -1,10 +1,10 @@
 # Cloud Computing Essentials
 
-### **Overview**
+## **Overview**
 
 The city's web portal team wants a solution that will make their beach wave size prediction webpage more reliable
 
-## Learn
+## **Learn**
 
 ### 1. Using Amazon S3, you can store and retrieve any amount of data from anywhere. You can also store any type of data.
 
@@ -24,7 +24,7 @@ The city's web portal team wants a solution that will make their beach wave size
 
 ![Alt text](./assets/image-1.png)
 
-## Practice
+## **Practice**
 
 ### 1. Go to the Amazon S3
 
